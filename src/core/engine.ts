@@ -3,16 +3,22 @@
  * loop that recomputes the SkyFrame and drives every render module.
  */
 import type { Observer } from '../astro/types';
+import type { Vec3 } from '../astro/types';
+import * as THREE from 'three';
 import { computeSkyFrame, type SkyFrame } from '../astro/sky';
 import { horVectorFromHorizontal } from '../astro/coords';
-import { SkyRenderer, type DisplayOptions } from '../render/renderer';
+import { SkyRenderer, skyBackgroundCss, type DisplayOptions } from '../render/renderer';
 import { StarCatalog } from '../data/starCatalog';
-import type { Vec3 } from '../astro/types';
-
-export interface EngineCallbacks {
-  onFrame?: (frame: SkyFrame) => void;
-  onPick?: (ndcX: number, ndcY: number) => void;
-}
+import {
+  buildEquatorialGrid,
+  buildHorizonGrid,
+  updateLineMaterial,
+} from '../render/lines';
+import { HorizonSystem, CARDINALS, cardinalDirHor } from '../render/horizon';
+import { ConstellationRenderer } from '../render/constellations';
+import { SolarSystemRenderer } from '../render/solarSystem';
+import { LabelRenderer } from '../render/labels';
+import { HipsBackground } from '../render/hips';
 
 const DEFAULT_OPTIONS: DisplayOptions = {
   equatorialGrid: false,
@@ -34,10 +40,21 @@ export class Engine {
   simTime: Date;
   observer: Observer;
   frame: SkyFrame;
-  modules: { update(frame: SkyFrame): void }[] = [];
-  pickHandler: ((ndcX: number, ndcY: number) => void) | null = null;
 
-  private lastRealTime = performance.now();
+  equatorialGrid = buildEquatorialGrid();
+  horizonGrid = buildHorizonGrid();
+  horizon = new HorizonSystem();
+  constellations = new ConstellationRenderer();
+  solarSystem = new SolarSystemRenderer();
+  hips = new HipsBackground();
+  labelRenderer: LabelRenderer | null = null;
+  pickHandler: ((ndcX: number, ndcY: number) => void) | null = null;
+  optionsChanged: (() => void) | null = null;
+
+  private cardinalDirs = CARDINALS.map((c) => ({
+    label: c.label,
+    dir: cardinalDirHor(c.az),
+  }));
 
   constructor(canvas: HTMLCanvasElement, observer: Observer, startDate: Date) {
     this.renderer = new SkyRenderer(canvas);
@@ -45,13 +62,12 @@ export class Engine {
     this.simTime = startDate;
     this.frame = computeSkyFrame(startDate, observer);
 
-    // Pointer interaction.
     this.renderer.onPointerDrag = (dx, dy) => this.drag(dx, dy);
     this.renderer.onWheel = (dy, ndcX, ndcY) => this.zoom(dy, ndcX, ndcY);
     this.renderer.onClick = (x, y) => this.pickHandler?.(x, y);
     window.addEventListener('resize', () => this.renderer.resize());
 
-    // Initial view: aim south-southwest, 40 deg up, wide field.
+    // Initial view: south-southwest, 40 deg up, wide field.
     this.renderer.skyCamera.setCenter(horVectorFromHorizontal(40, 200));
     this.renderer.skyCamera.setFov(90);
   }
@@ -59,30 +75,40 @@ export class Engine {
   async init(): Promise<void> {
     await this.catalog.init();
     this.renderer.scene.add(this.catalog.group);
-    this.modules.push({
-      update: (frame) => {
-        this.catalog.material.updatePerFrame({
-          frame,
-          camera: this.renderer.skyCamera,
-          atmosphere: this.options.atmosphere,
-          skyBrightness: this.skyBrightness(),
-          pixelRatio: this.renderer.pixelRatio,
-        });
-        this.catalog.ensureVisible(
-          this.renderer.skyCamera.centerHor,
-          this.renderer.skyCamera.fovDeg,
-          frame.rotEqjToHor,
-        );
-      },
-    });
+    this.renderer.scene.add(this.hips.group);
+
+    this.renderer.scene.add(this.equatorialGrid);
+    this.renderer.scene.add(this.horizonGrid);
+
+    await this.constellations.load();
+    this.renderer.scene.add(this.constellations.western);
+    this.renderer.scene.add(this.constellations.chinese);
+
+    this.renderer.scene.add(this.solarSystem.group);
+    this.renderer.scene.add(this.horizon.group);
+
+    this.labelRenderer = new LabelRenderer(document.getElementById('overlay')!);
+    await this.labelRenderer.load();
+
+    this.applyOptions();
   }
 
-  /** 0..1 sky glow from moonlight (and twilight handled by background). */
+  applyOptions(): void {
+    this.equatorialGrid.visible = this.options.equatorialGrid;
+    this.horizonGrid.visible = this.options.horizonGrid;
+    this.constellations.western.visible = this.options.constellationsWestern;
+    this.constellations.chinese.visible = this.options.constellationsChinese;
+    this.horizon.setVisible(this.options.ground);
+    this.hips.group.visible = this.options.hips;
+    this.optionsChanged?.();
+  }
+
+  /** 0..1 sky glow from moonlight (twilight tint is handled by the clear color). */
   skyBrightness(): number {
     const { moonAltDeg, moonIllum, sunAltDeg } = this.frame;
     let b = 0;
     if (moonAltDeg > 0) {
-      b = Math.max(b, (moonAltDeg / 90) * moonIllum * 0.55);
+      b = Math.max(b, (moonAltDeg / 90) * moonIllum * 0.5);
     }
     if (sunAltDeg > -6) {
       b = Math.max(b, Math.min(1, (sunAltDeg + 6) / 12));
@@ -137,19 +163,83 @@ export class Engine {
   }
 
   start(): void {
-    const loop = (now: number) => {
-      const dtMs = now - this.lastRealTime;
-      this.lastRealTime = now;
-      if (this.timeRate !== 0) {
-        this.simTime = new Date(
-          this.simTime.getTime() + dtMs * this.timeRate,
-        );
+    const loop = () => {
+      const dtMs = performance.now() - this.lastReal;
+      this.lastReal = performance.now();
+      if (this.timeRate !== 0 && Number.isFinite(this.timeRate)) {
+        this.simTime = new Date(this.simTime.getTime() + dtMs * this.timeRate);
       }
-      this.frame = computeSkyFrame(this.simTime, this.observer);
-      for (const m of this.modules) m.update(this.frame);
+      this.updateFrame();
       this.renderer.render();
       requestAnimationFrame(loop);
     };
+    this.lastReal = performance.now();
     requestAnimationFrame(loop);
+  }
+
+  private lastReal = performance.now();
+
+  updateFrame(): void {
+    const frame = computeSkyFrame(this.simTime, this.observer);
+    this.frame = frame;
+    const camera = this.renderer.skyCamera;
+
+    // Twilight / night background color.
+    this.renderer.renderer.setClearColor(
+      new THREE.Color(skyBackgroundCss(frame, this.options.atmosphere)),
+    );
+
+    // Star field + tile streaming.
+    this.catalog.material.updatePerFrame({
+      frame,
+      camera,
+      atmosphere: this.options.atmosphere,
+      skyBrightness: this.skyBrightness(),
+      pixelRatio: this.renderer.pixelRatio,
+    });
+    this.catalog.ensureVisible(camera.centerHor, camera.fovDeg, frame.rotEqjToHor);
+
+    // HiPS background.
+    if (this.options.hips) this.hips.update(frame, camera);
+
+    // Grids.
+    if (this.equatorialGrid.visible) {
+      updateLineMaterial(
+        this.equatorialGrid.material as never,
+        frame,
+        camera,
+        true,
+      );
+    }
+    if (this.horizonGrid.visible) {
+      updateLineMaterial(
+        this.horizonGrid.material as never,
+        frame,
+        camera,
+        false,
+      );
+    }
+
+    // Constellations, solar system, horizon.
+    this.constellations.update(frame, camera);
+    this.solarSystem.setViewport(this.renderer.height, this.renderer.pixelRatio);
+    this.solarSystem.update(frame, camera);
+    this.horizon.update(camera);
+
+    // DOM labels.
+    if (this.labelRenderer) {
+      this.labelRenderer.update(
+        frame,
+        camera,
+        this.renderer.width,
+        this.renderer.height,
+        { labels: this.options.labels, ground: this.options.ground },
+        this.solarSystem.bodiesHor.map((b) => ({
+          name: b.info.label,
+          dirHor: b.dirHor,
+        })),
+        this.options.ground ? this.cardinalDirs : [],
+      );
+    }
   }
 }

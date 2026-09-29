@@ -130,3 +130,74 @@ export function ringPixelCount(nside: number, ring: number): number {
   if (ring <= 3 * nside) return 4 * nside;
   return 4 * (4 * nside - ring);
 }
+
+/**
+ * The four corner directions of a RING pixel, ordered N, E, S, W around the
+ * pixel center. Corners are found numerically: walk from the pixel center
+ * along tangent directions until ang2pixRing reports a different pixel
+ * (bisection to ~1e-6 rad). Polar-cap diamonds have corners on the meridian
+ * and parallel; equatorial diamonds are rotated 45 degrees.
+ */
+export function pixCornersVec(
+  nside: number,
+  pix: number,
+): [number, number, number][] {
+  const c = pixCenterVec(nside, pix);
+  const [cx, cy, cz] = c;
+  // Tangent basis.
+  let east: [number, number, number] = [-cy, cx, 0];
+  const eLen = Math.hypot(east[0], east[1], east[2]);
+  east = eLen > 1e-9 ? [east[0] / eLen, east[1] / eLen, east[2] / eLen] : [1, 0, 0];
+  const north: [number, number, number] = [
+    -cx * cz - 0,
+    -cy * cz,
+    cx * cx + cy * cy,
+  ];
+  const nLen = Math.hypot(north[0], north[1], north[2]);
+  const nrm = nLen > 1e-9 ? nLen : 1;
+  const nUnit: [number, number, number] = [
+    north[0] / nrm,
+    north[1] / nrm,
+    north[2] / nrm,
+  ];
+  // Cap diamonds: corners along N/E/S/W; equatorial: rotated 45 deg.
+  const inCap = Math.abs(cz) > 2 / 3;
+  const dirs: [number, number, number][] = inCap
+    ? [nUnit, east, [-nUnit[0], -nUnit[1], -nUnit[2]], [-east[0], -east[1], -east[2]]]
+    : (
+        [
+          [nUnit[0] + east[0], nUnit[1] + east[1], nUnit[2] + east[2]],
+          [east[0] - nUnit[0], east[1] - nUnit[1], east[2] - nUnit[2]],
+          [-nUnit[0] - east[0], -nUnit[1] - east[1], -nUnit[2] - east[2]],
+          [nUnit[0] - east[0], nUnit[1] - east[1], nUnit[2] - east[2]],
+        ] as [number, number, number][]
+      ).map((d) => {
+        const l = Math.hypot(d[0], d[1], d[2]);
+        return [d[0] / l, d[1] / l, d[2] / l];
+      });
+
+  const corners = dirs.map((d) => {
+    // Max step that certainly leaves the pixel: diagonal is < pi/2.
+    const angleOf = (t: number): [number, number, number] => {
+      const ct = Math.cos(t);
+      const st = Math.sin(t);
+      return [
+        c[0] * ct + d[0] * st,
+        c[1] * ct + d[1] * st,
+        c[2] * ct + d[2] * st,
+      ];
+    };
+    let lo = 0;
+    let hi = Math.PI / 3; // tiles are far smaller than 60 deg
+    for (let iter = 0; iter < 40; iter++) {
+      const mid = (lo + hi) / 2;
+      const v = angleOf(mid);
+      if (vec2pixRing(nside, v[0], v[1], v[2]) === pix) lo = mid;
+      else hi = mid;
+    }
+    const v = angleOf(lo);
+    const l = Math.hypot(v[0], v[1], v[2]);
+    return [v[0] / l, v[1] / l, v[2] / l] as [number, number, number];
+  });
+  return corners;
+}

@@ -6,6 +6,8 @@ import { Engine } from './core/engine';
 import { PLACES, DEFAULT_PLACE_ID } from './astro/places';
 import type { Observer } from './astro/types';
 import { attachUI } from './ui/panel';
+import { InfoCard } from './ui/infoCard';
+import { attachUrlSharing } from './ui/urlState';
 
 async function main(): Promise<void> {
   const canvas = document.getElementById('sky') as HTMLCanvasElement;
@@ -22,7 +24,14 @@ async function main(): Promise<void> {
 
   // Debug handle for development/inspection.
   (window as unknown as Record<string, unknown>).__xt = { engine };
+
+  const infoCard = new InfoCard(engine);
+  if (engine.labelRenderer) {
+    infoCard.loadNames(engine.labelRenderer.namedStars);
+  }
   attachUI(engine);
+  engine.applyOptions();
+  attachUrlSharing(engine);
 }
 
 main().catch((err) => {

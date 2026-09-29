@@ -119,10 +119,11 @@ describe('Sirius snapshot (Stellarium comparison anchor)', () => {
   it('snapshot values stay locked (regression guard)', () => {
     const frame = computeSkyFrame(TEST_DATE, SHANGHAI);
     const got = altAzFromJ2000(SIRIUS.ra, SIRIUS.dec, frame, SIRIUS);
-    // Locked 2025-06-01T14:00Z @ Shanghai: library reference agrees to 0.015 deg
-    // (the difference being proper motion + aberration, both by design).
-    expect(got.altitude).toBeCloseTo(-34.1621, 3);
-    expect(got.azimuth).toBeCloseTo(90.2326, 3);
+    // Locked 2025-06-01T14:00Z @ Shanghai (proper motion integrated from
+    // J2000.0 per VizieR I/259 note 3; library reference agrees to 0.015 deg,
+    // the difference being proper motion + aberration, both by design).
+    expect(got.altitude).toBeCloseTo(-34.1597, 3);
+    expect(got.azimuth).toBeCloseTo(90.2349, 3);
   });
 });
 

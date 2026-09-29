@@ -23,7 +23,7 @@
  * Run: pnpm stars:build
  */
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
@@ -198,6 +198,8 @@ async function buildStars(): Promise<void> {
     tyc: string;
     hip: number;
     mag: number;
+    /** J2000 unit-vector, for label placement without a catalog lookup. */
+    xyz: [number, number, number];
     en?: string;
     bayer?: string;
     flam?: string;
@@ -208,7 +210,7 @@ async function buildStars(): Promise<void> {
     const code = `${star.tyc1}-${star.tyc2}-${star.tyc3}`;
     let e = names.get(code);
     if (!e) {
-      e = { tyc: code, hip: star.hip, mag: star.v, zh: [] };
+      e = { tyc: code, hip: star.hip, mag: star.v, xyz: raDecToXyz(star.ra, star.dec), zh: [] };
       names.set(code, e);
     }
     return e;

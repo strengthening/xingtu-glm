@@ -8,7 +8,7 @@
  *
  * All spherical coordinates are in degrees.
  */
-import * as Astro from 'astronomy-engine';
+import type * as Astro from 'astronomy-engine';
 import type { EquatorialCoord, HorizontalCoord, Mat3, Vec3 } from './types';
 
 const DEG = Math.PI / 180;

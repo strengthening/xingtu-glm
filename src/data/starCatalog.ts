@@ -32,6 +32,8 @@ interface LoadedTile {
   key: string;
   points: THREE.Points;
   lastUsed: number;
+  /** Parallel TYC id array for picking; null when the ids fetch failed. */
+  ids: Uint32Array | null;
 }
 
 export class StarCatalog {
@@ -67,11 +69,14 @@ export class StarCatalog {
       ]);
       if (!binRes.ok) return;
       const binBuf = await binRes.arrayBuffer();
-      void idsRes; // ids fetched eagerly so they are warm in the HTTP cache for picking
+      let ids: Uint32Array | null = null;
+      if (idsRes.ok) {
+        ids = new Uint32Array(await idsRes.arrayBuffer());
+      }
       const points = makeStarPoints(binBuf, this.material, name);
       points.renderOrder = 10;
       this.root.add(points);
-      this.loaded.set(name, { key: name, points, lastUsed: ++this.useCounter });
+      this.loaded.set(name, { key: name, points, lastUsed: ++this.useCounter, ids });
       this.updateLimit();
       this.onLoaded?.();
     } catch {
@@ -159,13 +164,14 @@ export class StarCatalog {
     this.material.setBinLimit(limit);
   }
 
-  /**
-   * Find the loaded star nearest to a J2000 direction, within a tolerance in
-   * degrees. Used by click-picking.
-   */
-  *starsWithin(): Generator<{ points: THREE.Points; name: string }> {
+  /** Iterate loaded tiles for click-picking. */
+  *starsWithin(): Generator<{
+    points: THREE.Points;
+    name: string;
+    ids: Uint32Array | null;
+  }> {
     for (const tile of this.loaded.values()) {
-      yield { points: tile.points, name: tile.key };
+      yield { points: tile.points, name: tile.key, ids: tile.ids };
     }
   }
 
