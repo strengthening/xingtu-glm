@@ -1,0 +1,34 @@
+{
+  "name": "xingtu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser planetarium: WebGL star map built with Three.js + astronomy-engine",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "stars:download": "tsx scripts/download-stars.ts",
+    "stars:build": "tsx scripts/build-stars.ts"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.20.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.8"
+  }
+}
