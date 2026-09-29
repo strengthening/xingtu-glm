@@ -1,6 +1,6 @@
 # 星图 xingtu — 浏览器端星空 / 天象仪
 
-一个类似 Stellarium Web 的浏览器端星图：243 万颗 Tycho-2 恒星、立体投影（Stellarium 默认投影）、亚角秒级位置精度、西方星座与三垣二十八宿、太阳月亮八大行星、银河全景背景，全部在浏览器本地渲染。
+一个类似 Stellarium Web 的浏览器端星图：244.9 万颗恒星（Tycho-2 主表 + 补充表）、立体投影（Stellarium 默认投影）、亚角秒级位置精度、西方星座与三垣二十八宿、太阳月亮八大行星、银河全景背景，全部在浏览器本地渲染。
 
 技术栈：Vite + TypeScript（strict）+ Three.js（自定义 ShaderMaterial 星点）+ astronomy-engine（天文计算）+ Vitest。包管理使用 pnpm，代码风格 ESLint + Prettier。
 
@@ -32,7 +32,7 @@ pnpm dev            # 启动开发服务器，打开 http://localhost:5173
 
 - **天球视角**：相机位于球心，鼠标拖拽转视角，滚轮缩放（FOV 0.04°–300°，以光标为锚点）。
 - **立体投影**（stereographic，Stellarium 默认）：宽视场不变形，最大 300° 视场。
-- **星点渲染**：243 万颗 Tycho-2 恒星（V≤~12，远暗于肉眼极限 6 等）。亮度/大小按视星等映射（亮星更大更亮带柔光晕），颜色按 B−V 色指数映射到色温（Ballesteros 2012 + 黑体近似，GPU 查找表）。
+- **星点渲染**：244.9 万颗恒星（Tycho-2 主表 + 补充表）（V≤~12，远暗于肉眼极限 6 等）。亮度/大小按视星等映射（亮星更大更亮带柔光晕），颜色按 B−V 色指数映射到色温（Ballesteros 2012 + 黑体近似，GPU 查找表）。
 - **按视野加载**：亮星档（V<10，35 万颗）整天球常驻；更暗的两档（V 10–11、11+，共 208 万颗）按 HEALPix（nside=8，768 天区）切片，窄视场时只加载视野内天区，LRU 逐出。
 - **位置精度**：顶点着色器内按观测时刻推算自行 + 一阶周年/周日光行差（~20.5″ + 0.3″），坐标变换全部用矩阵在 GPU 完成，CPU 不做逐星计算。误差亚角秒级。
 - **观测者设置**：经纬度 + 时间。预设地点分"北半球"（上海默认、北京、乌鲁木齐、三亚、东京、新加坡、伦敦、纽约、雷克雅未克）与"南半球"（悉尼、墨尔本、珀斯、奥克兰、基督城、开普敦、约翰内斯堡、布宜诺斯艾利斯、圣地亚哥、利马、拉巴斯、基多、苏瓦、帕皮提、阿塔卡马）两组。时间可暂停 / 实时 / 最高 1 天每秒加速，可跳回当前时刻。
@@ -101,7 +101,7 @@ public/data/ 生成产物（git-ignored）
 
 | 数据 | 来源 | 许可证 |
 | --- | --- | --- |
-| 恒星星表（243 万星） | Tycho-2，Hog et al. 2000, A&A 355, L27；CDS VizieR [I/259](https://cdsarc.cds.unistra.fr/viz-bin/cat/I/259) | ESA Hipparcos/Tycho 任务数据，科学与教育用途可自由使用，请引用上述论文 |
+| 恒星星表（2,448,950 星） | Tycho-2，Hog et al. 2000, A&A 355, L27；CDS VizieR [I/259](https://cdsarc.cds.unistra.fr/viz-bin/cat/I/259) | ESA Hipparcos/Tycho 任务数据，科学与教育用途可自由使用，请引用上述论文 |
 | 星名（英文/IAU） | [IAU Catalog of Star Names](https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt)（WGSN） | IAU，注明出处即可自由使用 |
 | Bayer/Flamsteed 星名 | [HYG database v41](https://github.com/astronexus/HYG-Database) | CC BY-SA 4.0 |
 | 中国星名（3240 星）与星官连线（三垣二十八宿） | [Stellarium](https://stellarium.org) `skycultures/chinese`（v26.3，依《仪象考成》/《仪象考成续编》） | CC BY-SA 4.0 |
