@@ -58,6 +58,7 @@ interface Star {
   v: number; // Johnson V approximation
   bv: number; // Johnson B-V approximation
   hip: number; // 0 = none
+  fromSupplement?: boolean;
 }
 
 function packTyc(tyc1: number, tyc2: number, tyc3: number): number {
@@ -146,6 +147,102 @@ async function* iterateTycho2(): AsyncGenerator<Star> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Supplements (pipe-delimited, J1991.25 positions).
+//
+// The Tycho-2 main catalogue EXCLUDES stars brighter than VT ~ 1.9 (detector
+// saturation) — Sirius, Canopus, Alpha Centauri, the Crux stars, etc. all
+// live in supplement_1 (Tycho-1/Hipparcos data) instead. Positions there are
+// at epoch J1991.25 and must be propagated to J2000.0 with the proper motions
+// before merging, so the whole catalog shares one epoch.
+// ---------------------------------------------------------------------------
+
+const SUPPLEMENT_EPOCH = 1991.25;
+const MAIN_EPOCH = 2000.0;
+
+/** Parse one suppl_1/suppl_2 pipe-delimited line and propagate to J2000. */
+function parseSupplementLine(line: string): Star | null {
+  if (line.length < 110) return null;
+  const f = line.split('|');
+  // Columns: TYC1 TYC2 TYC3 | flag | RA | DE | pmRA | pmDE | eRA | eDE |
+  // e_pmRA | e_pmDE | mflag | BT | eBT | VT/Hp | eVT | prox | TYC | HIP | CCDM
+  const tyc1 = Number(f[0]!.slice(0, 4));
+  const tyc2 = Number(f[0]!.slice(5, 10));
+  const tyc3 = Number(f[0]!.slice(11, 12));
+  if (!Number.isFinite(tyc1) || !Number.isFinite(tyc2) || !Number.isFinite(tyc3)) {
+    return null;
+  }
+  const mflag = f[10] ?? '';
+  const ra1991 = Number(f[2]);
+  const dec1991 = Number(f[3]);
+  if (!Number.isFinite(ra1991) || !Number.isFinite(dec1991)) return null;
+  const pmRa = Number(f[4]);
+  const pmDec = Number(f[5]);
+  const pmRaVal = Number.isFinite(pmRa) ? pmRa : 0;
+  const pmDecVal = Number.isFinite(pmDec) ? pmDec : 0;
+
+  // Propagate J1991.25 -> J2000.0 along the great circle (mas -> deg).
+  const dt = MAIN_EPOCH - SUPPLEMENT_EPOCH;
+  const decRad = (dec1991 * Math.PI) / 180;
+  const ra2000 =
+    ra1991 + ((pmRaVal / 3.6e6) * dt) / Math.max(0.05, Math.cos(decRad));
+  const dec2000 = dec1991 + (pmDecVal / 3.6e6) * dt;
+
+  // Magnitude: 'H' rows carry Hp in the VT slot (close to V); 'T' rows carry
+  // Tycho-1 VT (and maybe BT). B-V is patched from HYG later when available.
+  let v: number;
+  let bt = NaN;
+  let vt = NaN;
+  const btTok = f[11]?.trim() ?? '';
+  const vtTok = f[13]?.trim() ?? '';
+  if (btTok !== '') bt = Number(btTok);
+  if (vtTok !== '') vt = Number(vtTok);
+  if (Number.isFinite(vt)) {
+    v = Number.isFinite(bt) ? vt - 0.09 * (bt - vt) : vt;
+  } else if (Number.isFinite(bt)) {
+    v = bt;
+  } else {
+    return null;
+  }
+  if (v < -2) return null; // defensive Sun filter
+  const bv = Number.isFinite(bt) && Number.isFinite(vt) ? 0.85 * (bt - vt) : NaN;
+
+  // HIP column may carry a CCDM component letter after the number
+  // (e.g. "71683A" for alpha Centauri A) — strip it.
+  const hipStr = (f[17] ?? '').trim().replace(/[A-Za-z].*$/, '');
+  const hip = hipStr === '' ? 0 : Number(hipStr);
+  return {
+    tyc1,
+    tyc2,
+    tyc3,
+    ra: ((ra2000 % 360) + 360) % 360,
+    dec: dec2000,
+    pmRa: pmRaVal,
+    pmDec: pmDecVal,
+    v,
+    bv,
+    hip: Number.isFinite(hip) ? hip : 0,
+    fromSupplement: true,
+  };
+}
+
+async function* iterateSupplement(): AsyncGenerator<Star> {
+  for (const file of ['suppl_1.dat.gz', 'suppl_2.dat.gz']) {
+    try {
+      const stream = createReadStream(path.join(RAW, 'tyc2', file)).pipe(
+        createGunzip(),
+      );
+      const rl = createInterface({ input: stream, crlfDelay: Infinity });
+      for await (const line of rl) {
+        const star = parseSupplementLine(line);
+        if (star) yield star;
+      }
+    } catch {
+      // Supplements are optional; the main catalogue works without them.
+    }
+  }
+}
+
 interface FileStats {
   file: string;
   stars: number;
@@ -179,19 +276,63 @@ async function writeBin(
 }
 
 async function buildStars(): Promise<void> {
-  console.log('Parsing Tycho-2 (40 volumes, ~1.05M stars)...');
+  console.log('Parsing Tycho-2 (20 volumes, 2.54M stars) + supplements...');
   const allStars: Star[] = [];
+  const tycSeen = new Set<number>();
   const t0 = Date.now();
   for await (const star of iterateTycho2()) {
     allStars.push(star);
+    tycSeen.add(packTyc(star.tyc1, star.tyc2, star.tyc3));
   }
-  console.log(`  parsed ${allStars.length.toLocaleString()} stars in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  const mainCount = allStars.length;
+  // Supplements carry the bright saturated stars (Sirius, Canopus, Crux...)
+  // plus Tycho-1 cross-checks; positions propagated to J2000.0 on parse.
+  for await (const star of iterateSupplement()) {
+    const id = packTyc(star.tyc1, star.tyc2, star.tyc3);
+    if (tycSeen.has(id)) continue;
+    tycSeen.add(id);
+    allStars.push(star);
+  }
+  console.log(
+    `  parsed ${mainCount.toLocaleString()} main + ${(allStars.length - mainCount).toLocaleString()} supplement stars in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+  );
 
   await mkdir(OUT, { recursive: true });
 
+  // B-V for supplement 'H' rows (Hp-only, no BT): patch from HYG color index.
+  const hygBvPatch = new Map<number, number>();
+  try {
+    const hygAll = await readFile(path.join(RAW, 'hygdata_v41.csv'), 'utf8');
+    const rows = hygAll.split('\n');
+    const hdr = rows[0]!.split(',').map((h) => h.replace(/"/g, ''));
+    const iH = hdr.indexOf('hip');
+    const iC = hdr.indexOf('ci');
+    for (let i = 1; i < rows.length; i++) {
+      const cells = rows[i]!.split(',').map((c) => c.replace(/^"|"$/g, ''));
+      const hip = Number(cells[iH]);
+      const ci = Number(cells[iC]);
+      if (Number.isFinite(hip) && hip > 0 && Number.isFinite(ci)) {
+        hygBvPatch.set(hip, ci);
+      }
+    }
+    let patched = 0;
+    for (const s of allStars) {
+      if (!Number.isFinite(s.bv)) {
+        const ci = s.hip > 0 ? hygBvPatch.get(s.hip) : undefined;
+        s.bv = ci !== undefined ? ci : 0.65;
+        if (ci !== undefined) patched++;
+      }
+    }
+    console.log(`  B-V patched for ${patched} supplement stars from HYG`);
+  } catch {
+    for (const s of allStars) if (!Number.isFinite(s.bv)) s.bv = 0.65;
+  }
+
   // Named-star support: HIP -> star index, then attach names from HYG + IAU.
   const byHip = new Map<number, Star>();
-  for (const s of allStars) if (s.hip > 0) byHip.set(s.hip, s);
+  // First-seen wins: the main catalogue and primary (A) components come
+  // first, so faint B components of doubles must not steal the name entry.
+  for (const s of allStars) if (s.hip > 0 && !byHip.has(s.hip)) byHip.set(s.hip, s);
 
   // ---------------- names ----------------
   interface NameEntry {

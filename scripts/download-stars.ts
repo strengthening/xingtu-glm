@@ -29,10 +29,13 @@ mkdirSync(path.join(RAW, 'skycultures'), { recursive: true });
 
 console.log('Tycho-2 main catalogue (VizieR I/259, CDS Strasbourg)...');
 const CDS = 'https://cdsarc.cds.unistra.fr/ftp/cats/I/259';
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 20; i++) {
   curl(`${CDS}/tyc2.dat.${String(i).padStart(2, '0')}.gz`, path.join(RAW, 'tyc2', `tyc2.dat.${String(i).padStart(2, '0')}.gz`));
 }
 curl(`${CDS}/ReadMe`, path.join(RAW, 'tyc2', 'ReadMe'));
+console.log('Tycho-2 supplements (bright saturated stars live here)...');
+curl(`${CDS}/suppl_1.dat.gz`, path.join(RAW, 'tyc2', 'suppl_1.dat.gz'));
+curl(`${CDS}/suppl_2.dat.gz`, path.join(RAW, 'tyc2', 'suppl_2.dat.gz'));
 
 console.log('HYG database v41 (names/Bayer/Flamsteed, CC BY-SA 4.0)...');
 curl(
