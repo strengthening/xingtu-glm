@@ -68,8 +68,17 @@ export class InfoCard {
     const frame = this.engine.frame;
     const m = frame.rotEqjToHor;
     const dirEqj = applyMat3T(m, dirHor);
-    const toleranceDeg = Math.max(0.08, this.engine.renderer.skyCamera.fovDeg / 50);
-    let best: (StarHit & { sep: number }) | null = null;
+    const cam = this.engine.renderer.skyCamera;
+    // 12-pixel pick radius, floor 0.15 deg.
+    const toleranceDeg = Math.max(0.15, (12 * cam.fovDeg) / this.engine.renderer.height);
+    let best: (StarHit & { sep: number; mag: number }) | null = null;
+    const consider = (sep: number, hit: StarHit): void => {
+      // Among stars inside the pick radius, prefer the brightest: dense
+      // fields have dozens of faint stars around every click.
+      if (!best || hit.mag < best.mag - 0.4 || (Math.abs(hit.mag - best.mag) <= 0.4 && sep < best.sep)) {
+        best = { ...hit, sep, mag: hit.mag };
+      }
+    };
     for (const tile of this.engine.catalog.starsWithin()) {
       const geo = tile.points.geometry;
       const pos = geo.getAttribute('position') as THREE.InterleavedBufferAttribute;
@@ -78,25 +87,22 @@ export class InfoCard {
       const pmAttr = geo.getAttribute('pm') as THREE.InterleavedBufferAttribute;
       const ids = tile.ids ?? [];
       const n = pos.count;
-      const stride = pos.data.stride; // interleaved stride in floats
-      void stride;
       for (let i = 0; i < n; i++) {
         const x = pos.getX(i);
         const y = pos.getY(i);
         const z = pos.getZ(i);
         const d = x * dirEqj[0] + y * dirEqj[1] + z * dirEqj[2];
-        if (d < 0.999) continue;
+        if (d < 0.99) continue;
         const sep = Math.acos(Math.min(1, d)) * (180 / Math.PI);
-        if (sep < toleranceDeg && (!best || sep < best.sep)) {
-          best = {
-            sep,
+        if (sep < toleranceDeg) {
+          consider(sep, {
             dirEqj: [x, y, z],
             mag: magAttr.getX(i),
             bv: bvAttr.getX(i),
             pmRa: pmAttr.getX(i),
             pmDec: pmAttr.getY(i),
             tycId: ids[i] ?? 0,
-          };
+          });
         }
       }
     }

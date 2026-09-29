@@ -19,6 +19,7 @@ import { ConstellationRenderer } from '../render/constellations';
 import { SolarSystemRenderer } from '../render/solarSystem';
 import { LabelRenderer } from '../render/labels';
 import { HipsBackground } from '../render/hips';
+import { PanoramaBackground } from '../render/panorama';
 
 const DEFAULT_OPTIONS: DisplayOptions = {
   equatorialGrid: false,
@@ -47,6 +48,7 @@ export class Engine {
   constellations = new ConstellationRenderer();
   solarSystem = new SolarSystemRenderer();
   hips = new HipsBackground();
+  panorama = new PanoramaBackground();
   labelRenderer: LabelRenderer | null = null;
   pickHandler: ((ndcX: number, ndcY: number) => void) | null = null;
   optionsChanged: (() => void) | null = null;
@@ -75,7 +77,8 @@ export class Engine {
   async init(): Promise<void> {
     await this.catalog.init();
     this.renderer.scene.add(this.catalog.group);
-    this.renderer.scene.add(this.hips.group);
+    await this.panorama.load();
+    this.renderer.scene.add(this.panorama.group);
 
     this.renderer.scene.add(this.equatorialGrid);
     this.renderer.scene.add(this.horizonGrid);
@@ -99,7 +102,7 @@ export class Engine {
     this.constellations.western.visible = this.options.constellationsWestern;
     this.constellations.chinese.visible = this.options.constellationsChinese;
     this.horizon.setVisible(this.options.ground);
-    this.hips.group.visible = this.options.hips;
+    this.panorama.setVisible(this.options.hips);
     this.optionsChanged?.();
   }
 
@@ -199,8 +202,8 @@ export class Engine {
     });
     this.catalog.ensureVisible(camera.centerHor, camera.fovDeg, frame.rotEqjToHor);
 
-    // HiPS background.
-    if (this.options.hips) this.hips.update(frame, camera);
+    // Milky Way panorama background (local asset; HiPS kept as an online option).
+    this.panorama.update(frame, camera, this.skyBrightness());
 
     // Grids.
     if (this.equatorialGrid.visible) {

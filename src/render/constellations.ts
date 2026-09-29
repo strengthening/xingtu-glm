@@ -45,7 +45,7 @@ export class ConstellationRenderer {
     for (const con of this.data.chinese) {
       this.appendConstellation(con, zhDirs, 'chinese');
     }
-    this.chinese.add(this.makeLines(zhDirs, 0xb8864d, 0.4));
+    this.chinese.add(this.makeLines(zhDirs, 0xd4a04c, 0.46));
   }
 
   private appendConstellation(
