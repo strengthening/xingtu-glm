@@ -12,8 +12,13 @@ import {
 import { makeAstroObserver, observerBetaEqj } from './aberration';
 import type { Observer } from './types';
 
-/** Catalog epoch of Tycho-2 positions (mean epoch of observation). */
-export const CATALOG_EPOCH_YEARS = 1991.25;
+/**
+ * Epoch of Tycho-2 catalog positions. The published mean positions are
+ * already propagated to J2000.0 by the catalog's own proper motions
+ * (VizieR I/259 ReadMe, note 3), so proper motion integrates from 2000.0,
+ * not from the 1991.25 mean epoch of observation.
+ */
+export const CATALOG_EPOCH_YEARS = 2000.0;
 
 export interface SkyFrame {
   date: Date;
