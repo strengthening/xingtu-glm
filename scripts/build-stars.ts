@@ -172,7 +172,6 @@ function parseSupplementLine(line: string): Star | null {
   if (!Number.isFinite(tyc1) || !Number.isFinite(tyc2) || !Number.isFinite(tyc3)) {
     return null;
   }
-  const mflag = f[10] ?? '';
   const ra1991 = Number(f[2]);
   const dec1991 = Number(f[3]);
   if (!Number.isFinite(ra1991) || !Number.isFinite(dec1991)) return null;
