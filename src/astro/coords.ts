@@ -39,6 +39,18 @@ export function dot(a: Vec3, b: Vec3): number {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+/** 矩阵乘积 C = A·B（行主序）。 */
+export function mulMat3(a: Mat3, b: Mat3): Mat3 {
+  const out = new Array<number>(9).fill(0);
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      out[r * 3 + c] =
+        a[r * 3]! * b[c]! + a[r * 3 + 1]! * b[3 + c]! + a[r * 3 + 2]! * b[6 + c]!;
+    }
+  }
+  return out;
+}
+
 export function applyMat3(m: Mat3, v: Vec3): Vec3 {
   return {
     x: m[0]! * v.x + m[1]! * v.y + m[2]! * v.z,
