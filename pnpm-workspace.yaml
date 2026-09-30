@@ -1,0 +1,5 @@
+# pnpm 设置（v10+ 从 package.json 的 pnpm 字段迁移至此）。
+# 批准 esbuild 的安装期校验脚本，否则 pnpm 12 在 CI 上以
+# ERR_PNPM_IGNORED_BUILDS 中止 install。
+allowBuilds:
+  esbuild: true

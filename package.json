@@ -14,9 +14,6 @@
     "stars:download": "tsx scripts/download-stars.ts",
     "stars:build": "tsx scripts/build-stars.ts"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
-  },
   "dependencies": {
     "astronomy-engine": "^2.1.19",
     "three": "^0.186.1"
