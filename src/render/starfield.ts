@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import type { Vec3 } from '../astro/types';
 import { maxPixRadDeg, pixNestToRadec } from '../astro/healpix';
+import type { NamedStar } from './labels';
 import { STAR_FRAG, STAR_VERT } from './shaders';
 
 const BASE = import.meta.env.BASE_URL ?? '/';
@@ -27,8 +28,19 @@ interface LoadedTile {
 }
 
 export interface StarPickSource {
-  /** 遍历当前已加载星（供拾取）：返回可中断。 */
-  forEach(cb: (x: number, y: number, z: number, mag: number, tyc: number) => void): void;
+  /** 遍历当前已加载可见星（供拾取与星名解析）。 */
+  forEach(
+    cb: (
+      x: number,
+      y: number,
+      z: number,
+      mag: number,
+      bv: number,
+      pmRa: number,
+      pmDec: number,
+      tyc: number,
+    ) => void,
+  ): void;
 }
 
 /** 单档星数上限的切片缓存容量（按块数）。 */
@@ -261,12 +273,39 @@ export class Starfield {
               floats[i * 7 + 1]!,
               floats[i * 7 + 2]!,
               floats[i * 7 + 3]!,
+              floats[i * 7 + 4]!,
+              floats[i * 7 + 5]!,
+              floats[i * 7 + 6]!,
               ids[i]!,
             );
           }
         }
       },
     };
+  }
+
+  /** 从全天档中解析有名字的星（TYC 字符串 → NamedStar，供标签层）。 */
+  resolveNamedStars(names: Record<string, { en?: string; zh?: string }>): NamedStar[] {
+    const out: NamedStar[] = [];
+    for (const w of this.whole.values()) {
+      const floats = starFloats(w.points);
+      for (let i = 0; i < w.ids.length; i++) {
+        const tyc = w.ids[i]!;
+        const key = `${tyc >>> 17}-${(tyc >>> 3) & 0x3fff}-${tyc & 7}`;
+        const n = names[key];
+        if (!n) continue;
+        const name = n.zh ?? n.en;
+        if (!name) continue;
+        out.push({
+          x: floats[i * 7]!,
+          y: floats[i * 7 + 1]!,
+          z: floats[i * 7 + 2]!,
+          mag: floats[i * 7 + 3]!,
+          name,
+        });
+      }
+    }
+    return out;
   }
 
   get loadedTileCount(): number {

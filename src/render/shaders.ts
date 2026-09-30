@@ -159,19 +159,21 @@ precision highp float;
 ${COMMON_UNIFORMS}
 ${PROJECT_H}
 attribute float aDash;      // 0 = 实线（网格），0.5 = 半透明（连线），1 = 地平线
+uniform float uSpace;       // 0 = EQJ 输入；2 = 地平系输入
 varying float vDash;
 varying float vAltDeg;
 
 void main() {
-  vec3 h = uHor * (uEqd * normalize(position));
+  vec3 p = normalize(position);
+  vec3 h = uSpace > 1.5 ? p : (uHor * (uEqd * p));
   vDash = aDash;
   vAltDeg = degrees(asin(clamp(h.z, -1.0, 1.0)));
-  vec4 p = projectHorizon(h);
-  if (p.z > 2.75) {
+  vec4 p4 = projectHorizon(h);
+  if (p4.z > 2.75) {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
   }
-  gl_Position = vec4(p.x, p.y, 0.0, 1.0);
+  gl_Position = vec4(p4.x, p4.y, 0.0, 1.0);
 }
 `;
 
