@@ -32,6 +32,17 @@ pnpm dev              # 启动开发服务器 → http://localhost:5173
 
 首次使用必须依次执行 `stars:download` 和 `stars:build`，否则页面无星（控制台有提示）。
 
+## 在线版（GitHub Pages）
+
+推送 main 分支会自动触发 [GitHub Actions](.github/workflows/deploy.yml)：CI 上下载星表、
+预处理切片、构建并发布到 GitHub Pages，数据不进入任何 git 分支。
+
+- 线上地址：<https://strengthening.github.io/xingtu-glm/>
+- 首次部署前需要在仓库 **Settings → Pages → Build and deployment** 把 Source 设为
+  **GitHub Actions**（一次即可），然后到 Actions 页手动 re-run 或再推一次。
+- 也可以在 Actions 页用 "Run workflow" 手动部署；星表原始文件按缓存键
+  `stars-raw-v1` 缓存，改预处理逻辑时更新该键强制重下。
+
 其他命令：`pnpm test`（Vitest 单元测试）、`pnpm lint`、`pnpm build`（生产构建）、
 `pnpm preview`（预览构建产物）。
 

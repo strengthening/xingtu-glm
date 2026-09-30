@@ -1,0 +1,73 @@
+# 部署到 GitHub Pages：下载星表 → 预处理 → 构建 → 发布
+#
+# 原始数据与生成切片都不进入任何 git 分支（见 AGENTS.md），
+# 每次（或缓存命中时）在 CI 上重新生成。
+#
+# 首次使用需在仓库 Settings → Pages → Build and deployment
+# 将 Source 设为 "GitHub Actions"，之后每次 push 到 main 自动部署。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache raw catalog data
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: stars-raw-v1
+
+      - name: Download star catalog (~170 MB, cached)
+        run: pnpm stars:download
+
+      - name: Preprocess star tiles
+        run: pnpm stars:build
+
+      - name: Build site
+        run: pnpm build
+
+      - name: Report artifact size
+        run: du -sh dist && du -sh dist/data/stars
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
