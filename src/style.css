@@ -1,0 +1,274 @@
+:root {
+  color-scheme: dark;
+  --panel-bg: rgba(10, 14, 26, 0.82);
+  --panel-border: rgba(120, 160, 255, 0.35);
+  --text: #e8edf8;
+  --text-dim: #aab6cf;
+  --accent: #ffd97a;
+  --control-bg: #1a2338;
+  --control-border: #5a76c4;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family:
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    system-ui,
+    sans-serif;
+  background: #000;
+  color: var(--text);
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#sky {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+#sky:active {
+  cursor: grabbing;
+}
+
+/* 标题 */
+#brand {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  user-select: none;
+}
+
+#brand .en {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 8px;
+  letter-spacing: 1px;
+}
+
+/* 控件通用：保证一眼能看出可操作 */
+select,
+input,
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  outline: none;
+}
+
+select:focus,
+input:focus,
+button:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 217, 122, 0.25);
+}
+
+button {
+  cursor: pointer;
+}
+
+input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  vertical-align: -2px;
+}
+
+input[type='range'] {
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+input[type='datetime-local'],
+input[type='number'] {
+  color-scheme: dark;
+}
+
+/* 控制面板 */
+#panel {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  width: 264px;
+  max-height: calc(100% - 120px);
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  z-index: 10;
+}
+
+#panel h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 12px 0 6px;
+  letter-spacing: 1px;
+}
+
+#panel h3:first-child {
+  margin-top: 0;
+}
+
+#panel .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+#panel .row label {
+  flex: 1;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+#panel select,
+#panel input {
+  max-width: 100%;
+}
+
+#panel .hint {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* 天体标签层 */
+#labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.star-label {
+  position: absolute;
+  transform: translate(4px, -50%);
+  color: #cfd9f2;
+  font-size: 12px;
+  text-shadow:
+    0 0 3px #000,
+    0 0 4px #000;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.solar-label {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dir-marker {
+  color: #ff9d5c;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow:
+    0 0 3px #000,
+    0 0 5px #000;
+  letter-spacing: 1px;
+}
+
+/* 信息卡 */
+#infocard {
+  position: absolute;
+  left: 12px;
+  bottom: 40px;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  z-index: 20;
+}
+
+#infocard h2 {
+  font-size: 15px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  padding-right: 22px;
+}
+
+#infocard .close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 16px;
+  padding: 2px 6px;
+}
+
+#infocard .close:hover {
+  color: var(--text);
+}
+
+#infocard table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+#infocard td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+
+#infocard td:first-child {
+  color: var(--text-dim);
+  white-space: nowrap;
+  padding-right: 12px;
+}
+
+/* 页脚 */
+#credits {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 12px 5px;
+  font-size: 11px;
+  color: rgba(200, 210, 235, 0.55);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+}

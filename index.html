@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l2.6 9.4L28 14l-9.4 2.6L16 26l-2.6-9.4L4 14l9.4-2.6z' fill='%23ffe9b0'/%3E%3C/svg%3E"
+    />
+    <title>星图 xingtu — 网页星空</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="sky"></canvas>
+      <div id="labels"></div>
+      <header id="brand">星图<span class="en">xingtu</span></header>
+      <aside id="panel" aria-label="控制面板"></aside>
+      <div id="infocard" hidden></div>
+      <footer id="credits">
+        恒星数据：Tycho-2 星表（ESA / ESO / CDS，公有领域）· 星名与星座连线：Stellarium
+        星空文化数据（CC BY-SA 4.0）· 银河背景图：见 README · 代码 MIT License
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
